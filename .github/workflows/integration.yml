@@ -3,6 +3,8 @@ on: [push]
 jobs:
   build:
     runs-on: zhengt-wsl
+    outputs:
+      buildOutput: ${{ steps.selftest.outputs.myOutput }}
     steps:
       - uses: actions/checkout@master
       - name: Self test
@@ -19,5 +21,21 @@ jobs:
     runs-on: zhengt-wsl
     steps:
       - name: Use output from previous job
-        run: echo "${{ needs.build.steps.selftest.outputs.myOutput }}"
-    
+        run: echo "${{ needs.build.outputs.buildOutput }}"
+
+  job1:
+    runs-on: zhengt-wsl
+    # Map a step output to a job output
+    outputs:
+      output1: ${{ steps.step1.outputs.test }}
+      output2: ${{ steps.step2.outputs.test }}
+    steps:
+    - id: step1
+      run: echo "::set-output name=test::hello"
+    - id: step2
+      run: echo "::set-output name=test::world"
+  job2:
+    runs-on: zhengt-wsl
+    needs: job1
+    steps:
+    - run: echo ${{needs.job1.outputs.output1}} ${{needs.job1.outputs.output2}}
