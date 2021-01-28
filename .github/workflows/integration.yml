@@ -19,5 +19,5 @@ jobs:
     runs-on: zhengt-wsl
     steps:
       - name: Use output from previous job
-        run: echo "${{ jobs.build.steps.selftest.outputs.myOutput }}"
+        run: echo "${{ needs.build.steps.selftest.outputs.myOutput }}"
     
