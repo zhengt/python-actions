@@ -2,7 +2,7 @@ name: Integration Test
 on: [push]
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: zhengt-wsl
     steps:
       - uses: actions/checkout@master
       - name: Self test
