@@ -14,3 +14,10 @@ jobs:
       - name: Check outputs
         run: |
           test "${{ steps.selftest.outputs.myOutput }}" == "Hello world"
+  deploy:
+    needs: [build]
+    runs-on: zhengt-wsl
+    steps:
+      - name: Use output from previous job
+        run: echo "${{ jobs.build.steps.selftest.outputs.myOutput }}"
+    
