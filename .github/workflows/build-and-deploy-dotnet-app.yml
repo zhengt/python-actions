@@ -155,9 +155,9 @@ jobs:
 
     - name: download deployment files
       run: |
-        curl --header "authorization: Bearer ${{ inputs.PAT_FOR_DEPLOYMENT }}" https://raw.githubusercontent.com/Namachain/deployment/master/deploy.sh -o deploy.sh
-        curl --header "authorization: Bearer ${{ inputs.PAT_FOR_DEPLOYMENT }}" https://raw.githubusercontent.com/Namachain/deployment/master/docker-compose.India.yml -o docker-compose.India.yml
-        curl --header "authorization: Bearer ${{ inputs.PAT_FOR_DEPLOYMENT }}" https://raw.githubusercontent.com/Namachain/deployment/master/docker-compose.Staging.yml -o docker-compose.Staging.yml
+        curl --header "authorization: Bearer ${{ secrets.PAT_FOR_DEPLOYMENT }}" https://raw.githubusercontent.com/Namachain/deployment/master/deploy.sh -o deploy.sh
+        curl --header "authorization: Bearer ${{ secrets.PAT_FOR_DEPLOYMENT }}" https://raw.githubusercontent.com/Namachain/deployment/master/docker-compose.India.yml -o docker-compose.India.yml
+        curl --header "authorization: Bearer ${{ secrets.PAT_FOR_DEPLOYMENT }}" https://raw.githubusercontent.com/Namachain/deployment/master/docker-compose.Staging.yml -o docker-compose.Staging.yml
         chmod +x deploy.sh
 
     - name: login to docker registry
