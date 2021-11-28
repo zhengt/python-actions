@@ -112,6 +112,9 @@ jobs:
         username: ${{ secrets.DOCKERUSER }}
         password: ${{ secrets.DOCKERPASS }}
     steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ inputs.branch }}
     - id: generate_strategy
       run: python -m actions.deployment_strategies
       env:
