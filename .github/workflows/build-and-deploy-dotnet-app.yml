@@ -116,7 +116,7 @@ jobs:
       run: "python -m actions.deployment_strategies"
       env:
         app_name: "${{ inputs.app_name }}"
-        image_tag: "${{ env.version }}-build${{ env.build }}"
+        image_tag: "${{ needs.publishbuild.outputs.version }}-build${{ needs.publishbuild.outputs.build }}"
         credential_service: "${{ inputs.credential_service }}"
         health_check_cmd: "${{ inputs.health_check_cmd }}"
         branch: "${{ inputs.branch }}"
@@ -131,9 +131,6 @@ jobs:
     steps:
     - name: display input
       run: echo "${{ toJSON(fromJSON(needs.generate-deployment-strategy.outputs.matrix_include)) }}"
-
-    - name: checkout code
-      uses: actions/checkout@v2
 
     - name: create key files
       run: mkdir -p ~/.ssh && echo "${{ secrets.DOCKER_PRIVATE_KEY }}" > ~/.ssh/id_rsa && chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
@@ -155,6 +152,13 @@ jobs:
 
     - name: list docker process
       run: docker ps
+
+    - name: download deployment files
+      run: |
+        curl --header "authorization: Bearer ${{ inputs.PAT }}" https://raw.githubusercontent.com/Namachain/deployment/master/deploy.sh -o deploy.sh
+        curl --header "authorization: Bearer ${{ inputs.PAT }}" https://raw.githubusercontent.com/Namachain/deployment/master/docker-compose.India.yml -o docker-compose.India.yml
+        curl --header "authorization: Bearer ${{ inputs.PAT }}" https://raw.githubusercontent.com/Namachain/deployment/master/docker-compose.Staging.yml -o docker-compose.Staging.yml
+        chmod +x deploy.sh
 
     - name: login to docker registry
       run: echo ${{ secrets.DOCKERPASS }} | docker login registry.namachain.com -u ${{ secrets.DOCKERUSER }} --password-stdin
