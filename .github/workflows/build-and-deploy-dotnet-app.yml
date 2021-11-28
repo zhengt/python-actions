@@ -36,7 +36,7 @@ on:
 
 jobs:
   publishbuild:
-    if: ${{ contains(github.event.pull_request.head.ref, 'feature/') || contains(github.event.pull_request.head.ref, 'bugfix/')}}
+#    if: ${{ contains(github.event.pull_request.head.ref, 'feature/') || contains(github.event.pull_request.head.ref, 'bugfix/')}}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.generate_output.outputs.version }}
