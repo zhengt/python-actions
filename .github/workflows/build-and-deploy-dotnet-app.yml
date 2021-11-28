@@ -122,6 +122,8 @@ jobs:
         image_tag: "${{ env.version }}-build${{ env.build }}"
         credential_service: "${{ inputs.credential_service }}"
         health_check_cmd: "${{ inputs.health_check_cmd }}"
+        branch: "${{ inputs.branch }}"
+        gh_token: "${{ secrets.GITHUB_TOKEN }}"
 
   deployment:
     runs-on: ubuntu-latest
