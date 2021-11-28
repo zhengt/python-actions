@@ -107,13 +107,13 @@ jobs:
     outputs:
       matrix_include: ${{ steps.generate_strategy.outputs.matrix_include }}
     container:
-      image: registry.namachain.com/namachain/actions:1.0.0
+      image: registry.namachain.com/namachain/actions:1.0.1
       credentials:
         username: ${{ secrets.DOCKERUSER }}
         password: ${{ secrets.DOCKERPASS }}
     steps:
     - id: generate_strategy
-      run: python -m actions.deployment_strategies
+      run: actions.deployment_strategies
       env:
         app_name: "${{ inputs.app_name }}"
         image_tag: "${{ env.version }}-build${{ env.build }}"
