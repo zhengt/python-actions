@@ -109,7 +109,7 @@ jobs:
         password: ${{ secrets.DOCKERPASS }}
     steps:
     - id: generate_strategy
-      run: actions.deployment_strategies
+      run: python -m actions.deployment_strategies
       env:
         app_name: "${{ inputs.app_name }}"
         image_tag: "${{ env.version }}-build${{ env.build }}"
