@@ -1,0 +1,203 @@
+name: Publish Build
+
+on:
+  workflow_call:
+    inputs:
+      app_name:
+        required: true
+        type: string
+      credential_service:
+        required: true
+        type: string
+      health_check_cmd:
+        required: true
+        type: string
+      docker_host:
+        required: true
+        type: string
+      branch:
+        required: true
+        type: string
+    secrets:
+      GITHUB_TOKEN:
+        required: true
+      PAT:
+        required: true
+      PAT_FOR_DEPLOYMENT:
+        required: true
+      DOCKERUSER:
+        required: true
+      DOCKERPASS:
+        required: true
+      DOCKER_USERNAME:
+        required: true
+      DOCKER_PRIVATE_KEY:
+        required: true
+
+jobs:
+  publishbuild:
+    if: ${{ contains(github.event.pull_request.head.ref, 'feature/') || contains(github.event.pull_request.head.ref, 'bugfix/')}}
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.generate_output.outputs.version }}
+      build: ${{ steps.generate_output.outputs.build }}
+    env:
+      NUGET_AUTH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    steps:
+    - uses: actions/checkout@v2
+      with:
+        ref: ${{ inputs.branch }}
+
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v1
+      with:
+        dotnet-version: 5.0.x
+        source-url: https://nuget.pkg.github.com/Namachain/index.json
+      env:
+        NUGET_AUTH_TOKEN: ${{ secrets.PAT }}
+
+    - run: cp ../nuget.config .
+    - run: dotnet nuget add source https://api.nuget.org/v3/index.json -n nuget.org --configfile ./nuget.config
+
+    - id: versionstep
+      name: Extract version
+      run: echo "version=$(grep '<Version>' < Server/*.csproj | sed 's/.*<Version>\(.*\)<\/Version>/\1/' | cut -d '$' -f 1)" >> $GITHUB_ENV
+
+    - run: echo "build=$(date +%s%N)" >> $GITHUB_ENV
+
+    - name: create key files
+      run: mkdir -p ~/.ssh && echo "${{ secrets.DOCKER_PRIVATE_KEY }}" > ~/.ssh/id_rsa && chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
+
+    - name: accept remote host key
+      run: ssh-keyscan -H ${{ inputs.docker_host }} >> ~/.ssh/known_hosts
+
+    - name: create docker context
+      run: docker context create namachain-context --default-stack-orchestrator=swarm --docker host=ssh://${{ secrets.DOCKER_USERNAME }}@${{ inputs.docker_host }}
+
+    - name: use docker context
+      run:  docker context use namachain-context
+
+    - name: Login to docker
+      run: echo ${{ secrets.DOCKERPASS }} | docker login registry.namachain.com -u ${{ secrets.DOCKERUSER }} --password-stdin 
+
+    - name: Build
+      run: docker build . --file Server/GithubDockerfile --tag registry.namachain.com/namachain/app:${{ env.version }}-build${{ env.build }} --tag registry.namachain.com/namachain/app:latest-build
+
+    - name: Publish
+      run: docker push registry.namachain.com/namachain/app --all-tags
+
+    - name: Tag with build version
+      run: git tag ${{ env.version }}-build${{ env.build }}
+
+    - run: git push origin --tags
+
+    - name: Generate-Output
+      id: generate_output
+      run: |
+        echo "::set-output name=version::${{ env.version }}"
+        echo "::set-output name=build::${{ env.build }}"
+
+  generate-deployment-strategy:
+    runs-on: ubuntu-latest
+    needs: publishbuild
+    outputs:
+      matrix_include: ${{ steps.generate_strategy.outputs.matrix_include }}
+    container:
+      image: registry.namachain.com/namachain/actions:1.0.0
+    steps:
+    - id: generate_strategy
+      run: actions.deployment_strategies
+      env:
+        app_name: "${{ inputs.app_name }}"
+        image_tag: "${{ env.version }}-build${{ env.build }}"
+        credential_service: "${{ inputs.credential_service }}"
+        health_check_cmd: "${{ inputs.health_check_cmd }}"
+
+  deployment:
+    runs-on: ubuntu-latest
+    needs: generate-deployment-strategy
+    strategy:
+      matrix:
+        include: ${{ fromJSON(needs.generate-deployment-strategy.outputs.matrix_include) }}
+    steps:
+    - name: display input
+      run: echo "${{ toJSON(fromJSON(needs.generate-deployment-strategy.outputs.matrix_include)) }}"
+
+    - name: checkout code
+      uses: actions/checkout@v2
+
+    - name: create key files
+      run: mkdir -p ~/.ssh && echo "${{ secrets.DOCKER_PRIVATE_KEY }}" > ~/.ssh/id_rsa && chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
+
+    - name: create secret files
+      run: mkdir -p ~/producer2 && echo "{}" > ~/producer2/producer.json
+
+    - name: accept remote host key
+      run: ssh-keyscan -H ${{ inputs.docker_host }} >> ~/.ssh/known_hosts
+
+    - name: create docker context
+      run: docker context create namachain-context --default-stack-orchestrator=swarm --docker host=ssh://${{ secrets.DOCKER_USERNAME }}@${{ inputs.docker_host }}
+
+    - name: use docker context
+      run:  docker context use namachain-context
+
+    - name: show docker version
+      run: docker version
+
+    - name: list docker process
+      run: docker ps
+
+    - name: login to docker registry
+      run: echo ${{ secrets.DOCKERPASS }} | docker login registry.namachain.com -u ${{ secrets.DOCKERUSER }} --password-stdin
+
+    - name: deploy app container
+      run: |
+        export namakey_IMAGE_TAG=latest
+        export vault_IMAGE_TAG=latest
+        export credsdeploy_IMAGE_TAG=latest
+        export userchain_IMAGE_TAG=latest
+        export userchaininit_IMAGE_TAG=latest
+        export authenticator_IMAGE_TAG=latest
+        export app_IMAGE_TAG=latest
+        export business_IMAGE_TAG=latest
+        export portal_IMAGE_TAG=latest
+        export kycapp_IMAGE_TAG=latest
+        export demoservice_IMAGE_TAG=latest
+        export producer_IMAGE_TAG=latest
+        export producerconfig_IMAGE_TAG=latest
+        export ${{ matrix.app_name }}IMAGE_TAG=${{ matrix.image_tag }}
+
+        ./deploy.sh -n -p staging -c namachain-context \
+        -f docker-compose.${{ matrix.staging_env }}.yml \
+        -s ${{ matrix.app_name }}
+
+    - name: run credential continer
+      # run credential container to update the credentials for the app just deployed, first, it makes sure
+      # the new app container is up and running using the health_check_cmd, then it runs the provided
+      # credential_service container to update the credentials
+      if: matrix.health_check_cmd != '' && matrix.credential_service != ''
+      run: |
+        until ssh ${{ secrets.DOCKER_USERNAME }}@${{ inputs.docker_host }} 'curl ${{ matrix.health_check_cmd }}'; do sleep 10; done
+
+        export namakey_IMAGE_TAG=latest
+        export vault_IMAGE_TAG=latest
+        export credsdeploy_IMAGE_TAG=latest
+        export userchain_IMAGE_TAG=latest
+        export userchaininit_IMAGE_TAG=latest
+        export authenticator_IMAGE_TAG=latest
+        export app_IMAGE_TAG=latest
+        export business_IMAGE_TAG=latest
+        export portal_IMAGE_TAG=latest
+        export kycapp_IMAGE_TAG=latest
+        export demoservice_IMAGE_TAG=latest
+        export producer_IMAGE_TAG=latest
+        export producerconfig_IMAGE_TAG=latest
+        export ${{ matrix.app_name }}IMAGE_TAG=${{ matrix.image_tag }}
+
+        ./deploy.sh -n -p staging -c namachain-context \
+        -f docker-compose.${{ matrix.staging_env }}.yml \
+        -s ${{ matrix.credential_service }}
+
+    - name: remote ssh private key
+      if: ${{ always() }}
+      run: rm -rf ~/.ssh
