@@ -65,17 +65,17 @@ jobs:
 
     - run: echo "build=$(date +%s%N)" >> $GITHUB_ENV
 
-    - name: create key files
-      run: mkdir -p ~/.ssh && echo "${{ secrets.DOCKER_PRIVATE_KEY }}" > ~/.ssh/id_rsa && chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
+#     - name: create key files
+#       run: mkdir -p ~/.ssh && echo "${{ secrets.DOCKER_PRIVATE_KEY }}" > ~/.ssh/id_rsa && chmod 700 ~/.ssh && chmod 600 ~/.ssh/id_rsa
 
-    - name: accept remote host key
-      run: ssh-keyscan -H ${{ inputs.docker_host }} >> ~/.ssh/known_hosts
+#     - name: accept remote host key
+#       run: ssh-keyscan -H ${{ inputs.docker_host }} >> ~/.ssh/known_hosts
 
-    - name: create docker context
-      run: docker context create namachain-context --default-stack-orchestrator=swarm --docker host=ssh://${{ secrets.DOCKER_USERNAME }}@${{ inputs.docker_host }}
+#     - name: create docker context
+#       run: docker context create namachain-context --default-stack-orchestrator=swarm --docker host=ssh://${{ secrets.DOCKER_USERNAME }}@${{ inputs.docker_host }}
 
-    - name: use docker context
-      run:  docker context use namachain-context
+#     - name: use docker context
+#       run:  docker context use namachain-context
 
     - name: Login to docker
       run: echo ${{ secrets.DOCKERPASS }} | docker login registry.namachain.com -u ${{ secrets.DOCKERUSER }} --password-stdin 
@@ -96,6 +96,10 @@ jobs:
       run: |
         echo "::set-output name=version::${{ env.version }}"
         echo "::set-output name=build::${{ env.build }}"
+
+    - name: Logout docker
+      if: always()
+      run: docker logout registry.namachain.com
 
   generate-deployment-strategy:
     runs-on: ubuntu-latest
@@ -204,3 +208,7 @@ jobs:
     - name: remote ssh private key
       if: ${{ always() }}
       run: rm -rf ~/.ssh
+
+    - name: Logout docker
+      if: always()
+      run: docker logout registry.namachain.com
