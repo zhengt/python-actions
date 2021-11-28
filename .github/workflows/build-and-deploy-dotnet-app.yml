@@ -36,7 +36,7 @@ on:
 
 jobs:
   publishbuild:
-#    if: ${{ contains(github.event.pull_request.head.ref, 'feature/') || contains(github.event.pull_request.head.ref, 'bugfix/')}}
+    if: ${{ contains(github.event.pull_request.head.ref, 'feature/') || contains(github.event.pull_request.head.ref, 'bugfix/')}}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.generate_output.outputs.version }}
@@ -104,6 +104,9 @@ jobs:
       matrix_include: ${{ steps.generate_strategy.outputs.matrix_include }}
     container:
       image: registry.namachain.com/namachain/actions:1.0.0
+      credentials:
+        username: ${{ secrets.DOCKERUSER }}
+        password: ${{ secrets.DOCKERPASS }}
     steps:
     - id: generate_strategy
       run: actions.deployment_strategies
