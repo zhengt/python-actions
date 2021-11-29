@@ -36,7 +36,6 @@ on:
 jobs:
   generate-deployment-strategy:
     runs-on: ubuntu-latest
-    needs: publishbuild
     outputs:
       matrix_include: ${{ steps.generate_strategy.outputs.matrix_include }}
     container:
