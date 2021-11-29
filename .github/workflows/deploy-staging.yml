@@ -1,4 +1,4 @@
-name: Publish Build
+name: Deploy Staging
 
 on:
   workflow_call:

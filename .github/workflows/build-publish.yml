@@ -19,7 +19,7 @@ on:
       DOCKERPASS:
         required: true
     outputs:
-      image_tag: ${{ jobs.publishbuild.outputs.version }}-build${{ jobs.publishbuild.outputs.build }}
+      image_tag: "${{ jobs.publishbuild.outputs.version }}-build${{ jobs.publishbuild.outputs.build }}"
 
 jobs:
   publishbuild:
