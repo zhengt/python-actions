@@ -6,15 +6,6 @@ on:
       app_name:
         required: true
         type: string
-      credential_service:
-        required: true
-        type: string
-      health_check_cmd:
-        required: true
-        type: string
-      docker_host:
-        required: true
-        type: string
       branch:
         required: true
         type: string
@@ -23,16 +14,15 @@ on:
         required: true
       PAT:
         required: true
-      PAT_FOR_DEPLOYMENT:
-        required: true
       DOCKERUSER:
         required: true
       DOCKERPASS:
         required: true
+    outputs:
+      image_tag: ${{ jobs.publishbuild.outputs.version }}-build${{ jobs.publishbuild.outputs.build }}
 
 jobs:
   publishbuild:
-#    if: ${{ contains(github.event.pull_request.head.ref, 'feature/') || contains(github.event.pull_request.head.ref, 'bugfix/')}}
     runs-on: ubuntu-latest
     outputs:
       version: ${{ steps.generate_output.outputs.version }}
@@ -65,10 +55,10 @@ jobs:
       run: echo ${{ secrets.DOCKERPASS }} | docker login registry.namachain.com -u ${{ secrets.DOCKERUSER }} --password-stdin 
 
     - name: Build
-      run: docker build . --file Server/GithubDockerfile --tag registry.namachain.com/namachain/app:${{ env.version }}-build${{ env.build }} --tag registry.namachain.com/namachain/app:latest-build
+      run: docker build . --file Server/GithubDockerfile --tag registry.namachain.com/namachain/${{ inputs.app_name }}:${{ env.version }}-build${{ env.build }} --tag registry.namachain.com/namachain/${{ inputs.app_name }}:latest-build
 
     - name: Publish
-      run: docker push registry.namachain.com/namachain/app --all-tags
+      run: docker push registry.namachain.com/namachain/${{ inputs.app_name }} --all-tags
 
     - name: Tag with build version
       run: git tag ${{ env.version }}-build${{ env.build }}
@@ -80,6 +70,7 @@ jobs:
       run: |
         echo "::set-output name=version::${{ env.version }}"
         echo "::set-output name=build::${{ env.build }}"
+
     - name: Logout docker
       if: always()
       run: docker logout registry.namachain.com
